@@ -37,11 +37,19 @@ public class BoxCollisions
         camera.FovY = 45.0f;
         camera.Projection = CameraProjection.Perspective;
 
-        SetTargetFPS(200);   // Set our game to run at 60 frames-per-second
-        Vector3 curr_position = new Vector3(-5.0f, 0, 0);
-        Vector3 velocity = new Vector3(0.5f, 0, 0);
+        SetTargetFPS(30);   // Set our game to run at 30 frames-per-second
+        Vector3 curr_position = new Vector3(0, 0, 0);
+        Vector3 velocity = new Vector3(0, 0, 0);
+        Vector3 acceleration = new Vector3(0, 0, 0);
         Vector3 curr_offset1 = new Vector3(0, 0, 0);
         Vector3 curr_offset2 = new Vector3(0, 0, 0);
+
+        INode bnode = new StaticNode(curr_position);
+        BoudingSphere sphere = new BoudingSphere(curr_offset1, 2.0f, bnode);
+        TranslationalPhysicsComponent tpnode = new TranslationalPhysicsComponent(velocity, acceleration, bnode);
+        sphere._is_debug_drawn = true;
+
+
         // Main game loop
         while (!WindowShouldClose())
         {
@@ -52,29 +60,24 @@ public class BoxCollisions
 
             BeginMode3D(camera);
 
-            INode bnode = new StaticNode(curr_position);
-            BoudingSphere sphere = new BoudingSphere(curr_offset1, 2.0f, bnode);
-            BoudingSphere sphere2 = new BoudingSphere(curr_offset2, 2.0f, bnode);
-
-            sphere._is_debug_drawn = true;
-            sphere2._is_debug_drawn = true;
-
             bnode.Draw();
 
-
-            curr_position += velocity * GetFrameTime();
-            bnode._position = curr_position;
-
-            curr_offset1.Y = (float) Math.Sin(GetTime());
-            sphere._offset = curr_offset1;
-            curr_offset2.Z = (float)Math.Sin(GetTime());
-            sphere2._offset = curr_offset2;
+            // curr_offset1.Y = (float) Math.Sin(GetTime());
+            // sphere._offset = curr_offset1;
 
             DrawGrid(10, 1.0f);
 
             EndMode3D();
 
+            Vector3 curr_vel = tpnode.Velocity;
+            curr_vel.X = 5 * (float) Math.Sin(GetTime());
+            curr_vel.Z = 5 * (float) Math.Cos(GetTime());
+
+            tpnode.Velocity = curr_vel;
+            bnode.Step();
+
             DrawFPS(10, 10);
+            DrawText(bnode.Position.ToString(), 220, 40, 20, Color.Black);
 
             EndDrawing();
             //----------------------------------------------------------------------------------

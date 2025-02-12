@@ -15,7 +15,10 @@ namespace Physics550Engine_Raylib.Physics.Interfaces
     {
         public event EventHandler<PositionUpdateEventArgs>? PositionUpdateEvent;
         public event EventHandler<EventArgs>? DrawEvent;
-        public Vector3 _position {  get; set; }
+        public event EventHandler<EventArgs>? StepEvent;
+
+        public Vector3 Position {  get; set; }
+        public void Step();
         public void Draw();
     }
 }

@@ -9,10 +9,11 @@ namespace Physics550Engine_Raylib.Physics
     {
         public event EventHandler<PositionUpdateEventArgs>? PositionUpdateEvent;
         public event EventHandler<EventArgs>? DrawEvent;
+        public event EventHandler<EventArgs>? StepEvent;
 
-        private Vector3 _real_position;
-        public Vector3 _position {
-            get { return _real_position; }
+        private Vector3 _position;
+        public Vector3 Position {
+            get { return _position; }
             set
             {
                 PositionUpdateEventArgs args = new()
@@ -20,7 +21,7 @@ namespace Physics550Engine_Raylib.Physics
                     _new_position = value,
                 };
                 OnPositionUpdate(args);
-                _real_position = value;
+                _position = value;
             }
         }
         public StaticNode(Vector3 position)
@@ -31,6 +32,12 @@ namespace Physics550Engine_Raylib.Physics
         public void OnPositionUpdate(PositionUpdateEventArgs args)
         {
             PositionUpdateEvent?.Invoke(this, args);
+        }
+
+        public void Step()
+        { 
+            EventArgs args = new();
+            StepEvent?.Invoke(this, args);
         }
         public void Draw()
         {
