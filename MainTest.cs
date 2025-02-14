@@ -43,11 +43,14 @@ public class BoxCollisions
         Vector3 acceleration = new Vector3(0, 0, 0);
         Vector3 curr_offset1 = new Vector3(0, 0, 0);
         Vector3 curr_offset2 = new Vector3(0, 0, 0);
+        Vector3 side_lengths = new Vector3(2, 2, 2);
 
         INode bnode = new StaticNode(curr_position);
-        BoudingSphere sphere = new BoudingSphere(curr_offset1, 2.0f, bnode);
+        //BoundingSphere sphere = new BoundingSphere(curr_offset1, 2.0f, bnode);
+        AxisAlignedBoundingBox aabb = new AxisAlignedBoundingBox(curr_offset2, side_lengths, bnode);
+
         TranslationalPhysicsComponent tpnode = new TranslationalPhysicsComponent(velocity, acceleration, bnode);
-        sphere._is_debug_drawn = true;
+        bnode.IsDebugDrawn = true;
 
 
         // Main game loop

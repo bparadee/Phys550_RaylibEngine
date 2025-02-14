@@ -9,21 +9,19 @@ using Physics550Engine_Raylib.Physics.Interfaces;
 
 namespace Physics550Engine_Raylib.Physics
 {
-    public class BoudingSphere : IBoundingShape
+    public class BoundingSphere : IBoundingShape
     {
         public bool _is_colliding {  get; set; }
         //need to add callback to update values when parent changes (if parents should be able to change).
         public INode _parent_node { get; set; }
         public Vector3 _offset { get; set; }
         private Vector3 _global_position { get; set; }
-        public bool _is_debug_drawn { get ; set; }
         public float _radius { get; set; }
 
-        public BoudingSphere(Vector3 offset, float radius, INode parent_node)
+        public BoundingSphere(Vector3 offset, float radius, INode parent_node)
         {
             _offset = offset;
             _radius = radius;
-            _is_debug_drawn = false;
             _parent_node = parent_node;
             parent_node.DrawEvent += DebugDraw;
             parent_node.PositionUpdateEvent += UpdateGlobalPosition;
@@ -38,7 +36,7 @@ namespace Physics550Engine_Raylib.Physics
 
         private void DebugDraw(Object? sender, EventArgs _)
         {
-            if (_is_debug_drawn)
+            if (_parent_node.IsDebugDrawn)
             {
                 Raylib.DrawSphereWires(_global_position, _radius, 16, 16, Color.Red);
             }

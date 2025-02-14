@@ -45,6 +45,7 @@ namespace Physics550Engine_Raylib.Physics
             _acceleration = initial_acceleration;
             _parent_node = parent_node;
             parent_node.StepEvent += OnStep;
+            parent_node.DrawEvent += DebugDraw;
         }
 
         public void OnStep(object? __sender, EventArgs __args)
@@ -59,6 +60,14 @@ namespace Physics550Engine_Raylib.Physics
             return x_0 + x_delta * Raylib.GetFrameTime();
         }
 
+        private void DebugDraw(Object? sender, EventArgs _)
+        {
+            if (_parent_node.IsDebugDrawn)
+            {
+                Raylib.DrawCylinderEx(_parent_node.Position, _parent_node.Position + Velocity, .1f, .1f, 16, Color.Green);
+                Raylib.DrawCylinderEx(_parent_node.Position, _parent_node.Position + Acceleration, .1f, .1f, 16, Color.Blue);
+            }
+        }
 
 
     }

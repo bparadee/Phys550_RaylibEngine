@@ -11,6 +11,8 @@ namespace Physics550Engine_Raylib.Physics
         public event EventHandler<EventArgs>? DrawEvent;
         public event EventHandler<EventArgs>? StepEvent;
 
+        public bool IsDebugDrawn { get; set; }
+
         private Vector3 _position;
         public Vector3 Position {
             get { return _position; }
@@ -27,6 +29,7 @@ namespace Physics550Engine_Raylib.Physics
         public StaticNode(Vector3 position)
         {
             _position = position;
+            IsDebugDrawn = false;
         }
 
         public void OnPositionUpdate(PositionUpdateEventArgs args)
