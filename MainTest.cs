@@ -37,10 +37,10 @@ public class BoxCollisions
         camera.FovY = 45.0f;
         camera.Projection = CameraProjection.Perspective;
 
-        SetTargetFPS(30);   // Set our game to run at 30 frames-per-second
+        SetTargetFPS(120);   // Set our game to run at 30 frames-per-second
         Vector3 curr_position = new Vector3(0, 0, 0);
-        Vector3 velocity = new Vector3(0, 0, 0);
-        Vector3 acceleration = new Vector3(0, 0, 0);
+        Vector3 velocity_0 = new Vector3(0, 0, 0);
+        Vector3 acceleration_0 = new Vector3(.5f, 0, 0);
         Vector3 curr_offset1 = new Vector3(0, 0, 0);
         Vector3 curr_offset2 = new Vector3(0, 0, 0);
         Vector3 side_lengths = new Vector3(2, 2, 2);
@@ -49,7 +49,7 @@ public class BoxCollisions
         //BoundingSphere sphere = new BoundingSphere(curr_offset1, 2.0f, bnode);
         AxisAlignedBoundingBox aabb = new AxisAlignedBoundingBox(curr_offset2, side_lengths, bnode);
 
-        TranslationalPhysicsComponent tpnode = new TranslationalPhysicsComponent(velocity, acceleration, bnode);
+        TranslationalPhysicsComponent tpnode = new TranslationalPhysicsComponent(velocity_0, acceleration_0, bnode);
         bnode.IsDebugDrawn = true;
 
 
@@ -65,22 +65,16 @@ public class BoxCollisions
 
             bnode.Draw();
 
-            // curr_offset1.Y = (float) Math.Sin(GetTime());
-            // sphere._offset = curr_offset1;
-
             DrawGrid(10, 1.0f);
 
             EndMode3D();
 
-            Vector3 curr_vel = tpnode.Velocity;
-            curr_vel.X = 5 * (float) Math.Sin(GetTime());
-            curr_vel.Z = 5 * (float) Math.Cos(GetTime());
-
-            tpnode.Velocity = curr_vel;
             bnode.Step();
 
             DrawFPS(10, 10);
-            DrawText(bnode.Position.ToString(), 220, 40, 20, Color.Black);
+            DrawText("Position: " + bnode.Position.ToString(), 220, 40, 20, Color.Black);
+            DrawText("Velocity: " + tpnode.Velocity.ToString(), 220, 60, 20, Color.Black);
+            DrawText("Acceleration: " + tpnode.Acceleration.ToString(), 220, 80, 20, Color.Black);
 
             EndDrawing();
             //----------------------------------------------------------------------------------

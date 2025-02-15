@@ -33,10 +33,11 @@ namespace Physics550Engine_Raylib.Physics
         public Vector3 Acceleration
         {
             get { return _acceleration; }
-            //set
-            //{
-            //    _acceleration = value;
-            //}
+            // may want to instead influence this with forces rather than direct acceleration changes.
+            set
+            {
+                _acceleration = value;
+            }
         }
 
         public TranslationalPhysicsComponent(Vector3 initial_velocity, Vector3 initial_acceleration, INode parent_node)
@@ -49,15 +50,16 @@ namespace Physics550Engine_Raylib.Physics
         }
 
         public void OnStep(object? __sender, EventArgs __args)
-        { 
-            _velocity = NewtonsMethod(_velocity, _acceleration);
+        {
+            var timechange = Raylib.GetFrameTime();
+            _velocity = NewtonsMethod(_velocity, _acceleration, timechange);
             Vector3 current_position = _parent_node.Position;
-            _parent_node.Position = NewtonsMethod(current_position, _velocity);
+            _parent_node.Position = NewtonsMethod(current_position, _velocity, timechange);
         }
 
-        private static Vector3 NewtonsMethod(Vector3 x_0, Vector3 x_delta)
+        private static Vector3 NewtonsMethod(Vector3 x_0, Vector3 x_delta, float timechange)
         {
-            return x_0 + x_delta * Raylib.GetFrameTime();
+            return x_0 + x_delta * timechange;
         }
 
         private void DebugDraw(Object? sender, EventArgs _)
