@@ -8,7 +8,7 @@ namespace Physics550Engine_Raylib.Physics.Interfaces
 {
     public interface IScene
     {
+        public void Setup();
         public void Step();
-
     }
 }

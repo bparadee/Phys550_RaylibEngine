@@ -13,42 +13,37 @@ namespace Physics550Engine_Raylib.Physics
     {
         public bool IsColliding {  get; set; }
         //need to add callback to update values when parent changes (if parents should be able to change).
-        private INode _parent_node { get; set; }
-        public INode ParentNode 
-        {
-            get { return _parent_node; }
-        }
+        public INode ParentNode { get; private set; }
         public Vector3 Offset { get; set; }
-        private Vector3 _global_position { get; set; }
-        public Vector3 GlobalPosition
-        {
-            get { return _global_position; }
-        }
-        public float _radius { get; set; }
+        public Vector3 GlobalPosition { get; private set; }
+        public float Radius { get; set; }
 
         public BoundingSphere(Vector3 offset, float radius, INode parent_node)
         {
             Offset = offset;
-            _radius = radius;
-            _parent_node = parent_node;
+            Radius = radius;
+            ParentNode = parent_node;
 
             // These calls are adding delegates that will run upon the given event invocation.
             parent_node.DrawEvent += DebugDraw;
             parent_node.PositionUpdateEvent += UpdateGlobalPosition;
 
-            _global_position = Vector3.Transform(_parent_node.Position, Matrix4x4.CreateTranslation(Offset));
+            GlobalPosition = Vector3.Transform(ParentNode.Position, Matrix4x4.CreateTranslation(Offset));
+
+            //add this shape to our collider
+            Collider.Instance.AddBoundingShape(this);
         }
 
         private void UpdateGlobalPosition(Object? sender, PositionUpdateEventArgs args)
         {
-            _global_position = Vector3.Transform(args._new_position, Matrix4x4.CreateTranslation(Offset));
+            GlobalPosition = Vector3.Transform(args._new_position, Matrix4x4.CreateTranslation(Offset));
         }
 
         private void DebugDraw(Object? sender, EventArgs _)
         {
-            if (_parent_node.IsDebugDrawn)
+            if (ParentNode.IsDebugDrawn)
             {
-                Raylib.DrawSphereWires(_global_position, _radius, 16, 16, Color.Red);
+                Raylib.DrawSphereWires(GlobalPosition, Radius, 16, 16, IsColliding ? Color.Red : Color.Blue);
             }
         }
     }

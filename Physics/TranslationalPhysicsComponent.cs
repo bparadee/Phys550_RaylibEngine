@@ -2,6 +2,8 @@
 using Raylib_cs;
 using System.Numerics;
 
+//this file is getting removed
+
 namespace Physics550Engine_Raylib.Physics
 {
     public class VelocityUpdateEventArgs : EventArgs
@@ -33,7 +35,6 @@ namespace Physics550Engine_Raylib.Physics
         public Vector3 Acceleration
         {
             get { return _acceleration; }
-            // may want to instead influence this with forces rather than direct acceleration changes.
             set
             {
                 _acceleration = value;
