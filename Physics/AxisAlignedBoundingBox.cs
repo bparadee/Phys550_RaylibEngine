@@ -12,34 +12,19 @@ namespace Physics550Engine_Raylib.Physics
     public class AxisAlignedBoundingBox : IBoundingShape
     {
         public bool IsColliding { get; set; }
-        //need to add callback to update values when parent changes (if parents should be able to change).
-        public INode ParentNode { get; private set; }
         public Vector3 Offset { get; set; }
         public Vector3 SideLengths { get; set; }
-        public Vector3 GlobalPostion {  get; private set; }
+        public Vector3 Position { get; set; }
 
         public AxisAlignedBoundingBox(Vector3 offset, Vector3 side_lengths, INode parent_node)
         {
             Offset = offset;
-            ParentNode = parent_node;
             SideLengths = side_lengths;
-            parent_node.DrawEvent += DebugDraw;
-            parent_node.PositionUpdateEvent += UpdateGlobalPosition;
-
-            GlobalPostion = Vector3.Transform(ParentNode.Position, Matrix4x4.CreateTranslation(Offset));
         }
 
-        private void UpdateGlobalPosition(Object? sender, PositionUpdateEventArgs args)
+        public void Draw()
         {
-            GlobalPostion = Vector3.Transform(args._new_position, Matrix4x4.CreateTranslation(Offset));
-        }
-
-        private void DebugDraw(Object? sender, EventArgs _)
-        {
-            if (ParentNode.IsDebugDrawn)
-            {
-                Raylib.DrawCubeWiresV(ParentNode.Position, SideLengths, IsColliding ? Color.Red : Color.Blue);
-            }
+            Raylib.DrawCubeWiresV(Position, SideLengths, Color.Red);
         }
     }
 }

@@ -10,7 +10,8 @@ namespace Physics550Engine_Raylib.Physics.Interfaces
     public interface IBoundingShape
     {
         public bool IsColliding { get; set; }
-        public INode ParentNode { get; }
         public Vector3 Offset { get; set; }
+        public Vector3 Position { get; set; }
+        public void Draw();
     }
 }
