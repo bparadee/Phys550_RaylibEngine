@@ -49,8 +49,8 @@ namespace Physics550Engine_Raylib.Physics
         {
             if (IsDebugDrawn)
             {
-                Raylib.DrawCylinderEx(Position, Position + Velocity, .1f, .1f, 16, Color.Green);
-                Raylib.DrawCylinderEx(Position, Position + Acceleration, .1f, .1f, 16, Color.Blue);
+                Raylib.DrawCylinderEx(Position, Position + Velocity, .05f, .03f, 16, Color.Green);
+                Raylib.DrawCylinderEx(Position, Position + Acceleration, .05f, .03f, 16, Color.Blue);
                 BoundingShape.Draw();
             }
             EventArgs args = new();

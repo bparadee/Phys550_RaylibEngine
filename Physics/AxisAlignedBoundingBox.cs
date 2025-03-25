@@ -16,7 +16,7 @@ namespace Physics550Engine_Raylib.Physics
         public Vector3 SideLengths { get; set; }
         public Vector3 Position { get; set; }
 
-        public AxisAlignedBoundingBox(Vector3 offset, Vector3 side_lengths, INode parent_node)
+        public AxisAlignedBoundingBox(Vector3 offset, Vector3 side_lengths)
         {
             Offset = offset;
             SideLengths = side_lengths;
@@ -24,7 +24,7 @@ namespace Physics550Engine_Raylib.Physics
 
         public void Draw()
         {
-            Raylib.DrawCubeWiresV(Position, SideLengths, Color.Red);
+            Raylib.DrawCubeWiresV(Position, SideLengths, IsColliding ? Color.Red : Color.Blue);
         }
     }
 }

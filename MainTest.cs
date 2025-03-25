@@ -45,13 +45,15 @@ public class BoxCollisions
         Vector3 velocity_1 = new Vector3(-1, 0, 0);
         Vector3 acceleration_0 = new Vector3(0, 0, 0);
         Vector3 curr_offset1 = new Vector3(0, 0, 0);
-        Vector3 side_lengths = new Vector3(4, 4, 4);
+        Vector3 side_lengths = new Vector3(0.7f, 0.7f, 0.7f);
+        Quaternion rotated = new Quaternion(.462f, .191f, .462f, .733f);
+        Quaternion not_rotated = new Quaternion(0, 0, 0, 1);
 
         BroadcastNode stepper = new BroadcastNode();
 
         for (int i = 0; i < 10; ++i)
         {
-            var shape = new BoundingSphere(curr_offset1, 0.4f);
+            var shape = new OrientedBoundingBox(curr_offset1, side_lengths, rotated);
             var body = new RigidBody(shape, velocity_0, acceleration_0, curr_position);
             body.IsDebugDrawn = true;
             stepper.AddNode(body);
@@ -60,7 +62,7 @@ public class BoxCollisions
 
         for (int i = 10; i < 20; ++i)
         {
-            var shape = new BoundingSphere(curr_offset1, 0.4f);
+            var shape = new OrientedBoundingBox(curr_offset1, side_lengths, rotated);
             var body = new RigidBody(shape, velocity_1, acceleration_0, curr_position2);
             body.IsDebugDrawn = true;
             stepper.AddNode(body);
