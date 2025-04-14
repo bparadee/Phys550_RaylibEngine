@@ -59,7 +59,6 @@ namespace Physics550Engine_Raylib.Physics
             }
 
             //BroadPhaseCollisionDetection(Collisions);
-
             foreach (var pair in Collisions)
             {
                 CollisionResult collisionResult;
@@ -74,8 +73,32 @@ namespace Physics550Engine_Raylib.Physics
         void ResolveCollision(Tuple<int, int> pair, CollisionResult collisionResult)
         {
             //update here to have better collision resolution in the future!
-            ShapeMap[pair.Item1].BoundingShape.IsColliding = true;
-            ShapeMap[pair.Item2].BoundingShape.IsColliding = true;
+
+            RigidBody shape1 = ShapeMap[pair.Item1];
+            RigidBody shape2 = ShapeMap[pair.Item2];
+
+            shape1.BoundingShape.IsColliding = true;
+            shape2.BoundingShape.IsColliding = true;
+
+            Vector3 momentum1 = shape1.Mass * shape1.Velocity;
+            Vector3 momentum2 = shape2.Mass * shape2.Velocity;
+
+
+
+            //calculate translation of shape1:
+            //collisionResult.CollisionNormal 
+
+
+            //calculate translation of shape2:
+
+            //calculates rotation of shape1:
+
+            //calcualte rotation of shape2:
+            
+
+
+
+
         }
 
         private bool DetectCollision(Tuple<int, int> collision, out CollisionResult collisionResult)

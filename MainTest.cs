@@ -54,7 +54,7 @@ public class BoxCollisions
         for (int i = 0; i < 10; ++i)
         {
             var shape = new OrientedBoundingBox(curr_offset1, side_lengths, rotated);
-            var body = new RigidBody(shape, velocity_0, acceleration_0, curr_position);
+            var body = new RigidBody(shape, velocity_0, acceleration_0, curr_position, 1);
             body.IsDebugDrawn = true;
             stepper.AddNode(body);
             curr_position.X += 1.0f;
@@ -63,7 +63,7 @@ public class BoxCollisions
         for (int i = 10; i < 20; ++i)
         {
             var shape = new OrientedBoundingBox(curr_offset1, side_lengths, rotated);
-            var body = new RigidBody(shape, velocity_1, acceleration_0, curr_position2);
+            var body = new RigidBody(shape, velocity_1, acceleration_0, curr_position2, 1);
             body.IsDebugDrawn = true;
             stepper.AddNode(body);
             curr_position2.Z += 1.0f;

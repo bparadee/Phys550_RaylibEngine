@@ -11,13 +11,16 @@ namespace Physics550Engine_Raylib.Physics
         public event EventHandler<PositionUpdateEventArgs>? PositionUpdateEvent;
         public Vector3 Velocity { get; private set; }
         public Vector3 Acceleration { get; private set; }
+        public Quaternion RotationalVelocity { get; private set; }
+        public Quaternion RotationalAcceleration { get; private set; }
         public IBoundingShape BoundingShape { get; set; }
-
-        public RigidBody(IBoundingShape boudingShape, Vector3 initial_velocity, Vector3 initial_acceleration, Vector3 initial_position)
+        public float Mass { get; set; }
+        public RigidBody(IBoundingShape boudingShape, Vector3 initial_velocity, Vector3 initial_acceleration, Vector3 initial_position, float mass)
         {
             BoundingShape = boudingShape;
             Velocity = initial_velocity;
             Acceleration = initial_acceleration;
+            Mass = mass;
             SetPosition(initial_position);
             Collider.Instance.AddRigidBody(this);
         }
@@ -53,7 +56,7 @@ namespace Physics550Engine_Raylib.Physics
                 Raylib.DrawCylinderEx(Position, Position + Acceleration, .05f, .03f, 16, Color.Blue);
                 BoundingShape.Draw();
             }
-            EventArgs args = new();
+            EventArgs args = new(); //come back to
         }
 
         public void Step()
