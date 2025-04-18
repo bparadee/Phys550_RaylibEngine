@@ -1,14 +1,15 @@
 ﻿using Raylib_cs;
 using Physics550Engine_Raylib.Physics.Interfaces;
 using System.Numerics;
+using Microsoft.VisualBasic.FileIO;
 
 namespace Physics550Engine_Raylib.Physics
 {
 
     public class BroadcastNode : INode
     {
-        public event EventHandler<EventArgs>? DrawEvent;
-        public event EventHandler<EventArgs>? StepEvent;
+
+        public List<INode> Nodes = new List<INode>();
 
         public bool IsDebugDrawn { get; set; }
 
@@ -19,29 +20,31 @@ namespace Physics550Engine_Raylib.Physics
 
         public void AddNode(INode node)
         {
-            DrawEvent += node.OnDraw;
-            StepEvent += node.OnStep;
+            Nodes.Add(node);
         }
 
         public void Step()
-        { 
-            EventArgs args = new();
-            StepEvent?.Invoke(this, args);
+        {
+            foreach (var node in Nodes)
+            {
+                node.Step();
+            }
         }
         public void Draw()
         {
-            EventArgs args = new();
-            DrawEvent?.Invoke(this, args);
+            foreach (var node in Nodes)
+            {
+                node.Draw();
+            }
         }
 
-        public void OnStep(object? _, EventArgs __)
+        public void Clear()
         {
-            Step();
-        }
-
-        public void OnDraw(object? _, EventArgs __)
-        {
-            Draw();
+            foreach (var node in Nodes)
+            {
+                node.Clear();
+            }
+            Nodes.Clear();
         }
     }
 }

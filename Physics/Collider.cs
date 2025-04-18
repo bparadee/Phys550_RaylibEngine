@@ -19,86 +19,399 @@ namespace Physics550Engine_Raylib.Physics
     }
     public class Collider
     {
-
         //only want one collider instance we already only have one PhysicsEgnine, so this might not be necessary
         private static readonly Lazy<Collider> instance = new Lazy<Collider>(() => new Collider());
         public static Collider Instance { get { return instance.Value; } }
         private int UniqueId = 0;
         //map of index to shape, index will be a unique identifier to that shape to be used with the broadphase collision detection.
         public Dictionary<int, RigidBody> ShapeMap { get; private set; }
+        public HashSet<Tuple<int, int>> PotentialCollisions = [];
+
+        public int BCDType = 0;
         private const float EPSILON = 1e-6f;
+        private static int MAX_DEPTH = 8;
+        private static int MAX_OBJ = 8;
+
         public Collider()
         {
             ShapeMap = new Dictionary<int, RigidBody>();
         }
-        public bool AddRigidBody(RigidBody rigidBody)
+        public int AddRigidBody(RigidBody rigidBody)
         {
             if (ShapeMap.ContainsValue(rigidBody))
             {
-                return false;
+                return -1;
             }
             ShapeMap.Add(++UniqueId, rigidBody);
-            return true;
+            return UniqueId;
+        }
+
+        public bool RemoveRigidBody(int UniqueId)
+        {
+            return ShapeMap.Remove(UniqueId);
+        }
+
+        public void Clear()
+        {
+            ShapeMap.Clear();
         }
 
         public void Step()
         {
-            HashSet<Tuple<int, int>> Collisions = new HashSet<Tuple<int, int>>();
-            //Broad Phase Collision Detection will replace this
-            for (int i = 1; i <= ShapeMap.Count; i++)
+            switch(BCDType)
             {
-                ShapeMap[i].BoundingShape.IsColliding = false;
-                for (int j = 1; j <= ShapeMap.Count; j++)
-                {
-                    if ( i == j || Collisions.Contains(Tuple.Create(j, i)))
+                case 1:
+                    PotentialCollisions = OctTreeBPCD();
+                break;
+                case 2:
+                    PotentialCollisions = SpatialSubdivision(1.0f);
+                break;
+                case 3:
+                    PotentialCollisions = SortAndSweep();
+                break;
+                case 0:
+                default:
+                    PotentialCollisions = [];
+                    //Broad Phase Collision Detection will replace 
+                    foreach (var shapePair1 in ShapeMap)
                     {
-                        continue;
+                        foreach (var shapePair2 in ShapeMap)
+                        {
+                            if (shapePair1.Key == shapePair2.Key || PotentialCollisions.Contains(Tuple.Create(shapePair2.Key, shapePair1.Key)))
+                            {
+                                continue;
+                            }
+                            PotentialCollisions.Add(Tuple.Create(shapePair1.Key, shapePair2.Key));
+                        }
                     }
-                    Collisions.Add(Tuple.Create(i, j));
-                }
+                break;
             }
 
-            //BroadPhaseCollisionDetection(Collisions);
-            foreach (var pair in Collisions)
+            foreach (var pair in PotentialCollisions)
             {
                 CollisionResult collisionResult;
-                if (DetectCollision(pair, out collisionResult)) {
-                    //Raylib.DrawSphere(collisionResult.ContactPoint, 0.5f, Color.Black);
-                    ResolveCollision(pair, collisionResult); 
-                }
 
+                ShapeMap[pair.Item1].BoundingShape.IsColliding = false;
+                ShapeMap[pair.Item2].BoundingShape.IsColliding = false;
+
+                if (DetectCollision(pair, out collisionResult))
+                {
+                    //Raylib.DrawSphere(collisionResult.ContactPoint, 0.5f, Color.Black);
+                    ResolveCollision(pair, collisionResult);
+                }
             }
         }
 
+        private HashSet<Tuple<int, int>> SortAndSweep()
+        {
+            // basically just projecting to an axis, gonna arbitrarily pick the x-axis,
+            // could do all of them in the future and have a way to change which you test for.
+            Vector3 axis = Vector3.UnitX;
+            // Tuple is projected_endoint, isBeginning(true = start, false=end), Id (value in shapeMa)
+            List<Tuple<float, bool, int>> projected_endpoints = new List<Tuple<float, bool, int>>();
+            foreach (var pair in ShapeMap)
+            {
+                ProjectOBB((OrientedBoundingBox)pair.Value.BoundingShape, axis, out float min, out float max);
+                projected_endpoints.Add(Tuple.Create(min, true, pair.Key));
+                projected_endpoints.Add(Tuple.Create(max, false, pair.Key));
+            }
+
+            //lambda here just uses the first item to sort the list, it's what we care about when sorting.
+            projected_endpoints.Sort((x, y) => x.Item1.CompareTo(y.Item1));
+
+            HashSet<Tuple<int, int>> pc = new HashSet<Tuple<int, int>>();
+            HashSet<int> active_shapes = new HashSet<int>();
+
+            // make sure this goes in sorter order?? it should...
+            int curr_id = 0;
+            foreach (var item in projected_endpoints)
+            {
+                if (item.Item2)
+                {
+                    curr_id = item.Item3;
+                    foreach (var other_id in active_shapes)
+                    {
+                        if (other_id != curr_id && !pc.Contains(Tuple.Create(other_id, curr_id)))
+                        {
+                            pc.Add(Tuple.Create(other_id, curr_id));
+                        }
+                    }
+                    active_shapes.Add(item.Item3);
+                }
+                else
+                {
+                    active_shapes.Remove(item.Item3);
+                }
+            }
+
+            return pc;
+        }
+        private HashSet<Tuple<int, int>> SpatialSubdivision(float side)
+        {
+            // side param needs to 
+            Dictionary<int, Tuple<int, int>> grid_spots = new Dictionary<int, Tuple<int, int>>();
+            List<int> grid_spots_collide_all = new List<int>();
+
+            //assign all of them a grid spot here 
+            foreach (var pair in ShapeMap)
+            {
+                RigidBody body = pair.Value;
+                if (body.CollideAll)
+                {
+                    grid_spots_collide_all.Add(pair.Key);
+                }
+                else
+                {
+                    var grid_spot = Tuple.Create((int)Math.Floor(body.BoundingShape.Position.X),
+                                                 (int)Math.Floor(body.BoundingShape.Position.Y));
+                    grid_spots.Add(pair.Key, grid_spot);
+                }
+            }
+
+
+            HashSet<Tuple<int, int>> pc = new HashSet<Tuple<int, int>>();
+            //now go through the list
+            foreach (var Id in grid_spots.Keys)
+            {
+                Tuple<int, int> curr_grid = grid_spots[Id];
+                foreach (var Id2 in grid_spots.Keys)
+                {
+                    Tuple<int, int> other_grid = grid_spots[Id2];
+                    if ( Id != Id2 &&
+                         !pc.Contains(Tuple.Create(Id2, Id)) &&
+                         AreAdjacent(curr_grid, other_grid))
+                    {
+                        pc.Add(Tuple.Create(Id, Id2)); 
+                    }
+                }
+                //also add collisions for ones that need to always be considered "collide_all"
+                foreach (int Id2 in grid_spots_collide_all)
+                {
+                    pc.Add(Tuple.Create(Id, Id2));
+                }
+            }
+
+            foreach (int Id in grid_spots_collide_all)
+            {
+                foreach (int Id2 in grid_spots_collide_all)
+                {
+                    if (Id != Id2 && !pc.Contains(Tuple.Create(Id2, Id)))
+                    {
+                        pc.Add(Tuple.Create(Id, Id2));
+                    }
+                }
+            }
+
+            return pc;
+        }
+
+        private bool AreAdjacent(Tuple<int, int> curr, Tuple<int, int> other)
+        {
+            // both need to be surrounding grid spaces
+            return Math.Abs(curr.Item1 - other.Item1) <= 1 && Math.Abs(curr.Item2 - other.Item2) <= 1;
+        }
+
+        class OctTreeNode
+        {
+            public Vector3 Center;
+            public float Boundary;
+            public HashSet<Tuple<int, RigidBody>> Bodies = new HashSet<Tuple<int, RigidBody>>();
+            public List<OctTreeNode> Children = new List<OctTreeNode>();
+
+            public OctTreeNode(Vector3 center, float boundary)
+            {
+                Center = center;
+                Boundary = boundary;
+            }
+
+            public bool Insert(int Id, RigidBody body, int depth)
+            {
+                // assumes .7 side cube!!!! will change later.
+                if( (body.Position.X - 1 < Center.X - Boundary) ||
+                    (body.Position.X + 1 > Center.X + Boundary) ||
+                    (body.Position.Y - 1 < Center.Y - Boundary) ||
+                    (body.Position.Y + 1 > Center.Y + Boundary) ||
+                    (body.Position.Z - 1 < Center.Z - Boundary) ||
+                    (body.Position.Z + 1 > Center.Z + Boundary) )
+                {
+                    return false;
+                }
+
+
+                if (Children.Count == 0)
+                {
+                    if (Bodies.Count < Collider.MAX_OBJ || depth >= MAX_DEPTH)
+                    {
+                        Bodies.Add(Tuple.Create(Id, body));
+                        return true;
+                    }
+                    else
+                    {
+                        float newBoundary = Boundary / 2;
+                        float newCenter = Boundary / 4;
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, newCenter, newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, newCenter, -newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, -newCenter, -newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, newCenter, newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, -newCenter, newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, -newCenter, -newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, newCenter, -newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, -newCenter, newCenter), newBoundary));
+
+                        foreach (var bodyPair in Bodies)
+                        {
+                            foreach (var child in Children)
+                            {
+                                if (child.Insert(bodyPair.Item1, bodyPair.Item2, depth + 1))
+                                {
+                                    Bodies.Remove(bodyPair);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                foreach (var child in Children)
+                {
+                    if (child.Insert(Id, body, depth + 1))
+                    {
+                        return true;
+                    }
+                }
+
+                Bodies.Add(Tuple.Create(Id, body));
+                return true;
+            }
+
+            public void FindPotentialCollisions(int Id, RigidBody body, HashSet<Tuple<int, int>> potentialCollisions)
+            {
+                // assumes .7 side cube!!!! will change later.
+                if ((body.Position.X - 1 < Center.X - Boundary) ||
+                    (body.Position.X + 1 > Center.X + Boundary) ||
+                    (body.Position.Y - 1 < Center.Y - Boundary) ||
+                    (body.Position.Y + 1 > Center.Y + Boundary) ||
+                    (body.Position.Z - 1 < Center.Z - Boundary) ||
+                    (body.Position.Z + 1 > Center.Z + Boundary))
+                {
+                    return;
+                }
+                
+                //contained this cube
+                foreach (var bodyPair in Bodies)
+                {
+                    if (Id == bodyPair.Item1 || potentialCollisions.Contains(Tuple.Create(bodyPair.Item1, Id)))
+                    {
+                        continue;
+                    }
+                    potentialCollisions.Add(Tuple.Create(Id, bodyPair.Item1));
+                }
+
+                if (Children.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var child in Children)
+                {
+                    child.FindPotentialCollisions(Id, body, potentialCollisions);
+                }
+            }
+        }
+        private HashSet<Tuple<int, int>> OctTreeBPCD()
+        {
+            //build
+            //centered on (0,0,0) assumed.
+            float boundary = 100;
+            OctTreeNode root = new OctTreeNode(new Vector3(0,0,0), boundary);
+            root.Center = new Vector3(0, 0, 0);
+            root.Boundary = boundary;
+            
+            //creation of the tree! do this every step, but it's still faster, source trust me bro
+            foreach (var pair in ShapeMap)
+            {
+                root.Insert(pair.Key, pair.Value, 0);
+            }
+
+            HashSet < Tuple<int, int> > pc = new HashSet<Tuple<int, int>>();
+            //now we use the tree we created!
+            foreach (var pair in ShapeMap)
+            {
+                root.FindPotentialCollisions(pair.Key, pair.Value, pc);
+            }
+
+            return pc;
+        }
+        
         void ResolveCollision(Tuple<int, int> pair, CollisionResult collisionResult)
         {
-            //update here to have better collision resolution in the future!
-
             RigidBody shape1 = ShapeMap[pair.Item1];
             RigidBody shape2 = ShapeMap[pair.Item2];
 
             shape1.BoundingShape.IsColliding = true;
             shape2.BoundingShape.IsColliding = true;
 
-            Vector3 momentum1 = shape1.Mass * shape1.Velocity;
-            Vector3 momentum2 = shape2.Mass * shape2.Velocity;
+            Vector3 relativePosition1 = collisionResult.ContactPoint - shape1.Position;
+            Vector3 relativePosition2 = collisionResult.ContactPoint - shape2.Position;
+
+            float invMass1 = 1.0f / shape1.Mass;
+            float invMass2 = 1.0f / shape2.Mass;
+
+            Matrix4x4 invInertia1 = shape1.GetWorldInverseInertiaTensor();
+            Matrix4x4 invInertia2 = shape2.GetWorldInverseInertiaTensor();
+
+            Vector3 velocityA = shape1.GetVelocityAtPoint(collisionResult.ContactPoint);
+            Vector3 velocityB = shape2.GetVelocityAtPoint(collisionResult.ContactPoint);
+            Vector3 relativeVelocity = velocityB - velocityA;
+
+            float velocityAlongNormal = Vector3.Dot(relativeVelocity, collisionResult.CollisionNormal);
+            if (velocityAlongNormal > EPSILON)
+                return; // Objects are moving apart so we dont need to do anything.
 
 
+            Vector3 cross1 = Vector3.Cross(relativePosition1, collisionResult.CollisionNormal);
+            Vector3 cross2 = Vector3.Cross(relativePosition2, collisionResult.CollisionNormal);
+            Vector3 angularComponent1 = Vector3.Transform(cross1, invInertia1);
+            Vector3 angularComponent2 = Vector3.Transform(cross2, invInertia2);
 
-            //calculate translation of shape1:
-            //collisionResult.CollisionNormal 
+            // Calculate restitution, this might be an oversimplification, idk should be close enough
+            float restitution = Math.Min(shape1.Restitution, shape2.Restitution);
 
+            float j = -(1 + restitution) * velocityAlongNormal /
+                (invMass1 + invMass2 +
+                Vector3.Dot(Vector3.Cross(angularComponent1, relativePosition1)
+                + Vector3.Cross(angularComponent2, relativePosition2), collisionResult.CollisionNormal) + EPSILON);
 
-            //calculate translation of shape2:
+            Vector3 impulse = j * collisionResult.CollisionNormal;
 
-            //calculates rotation of shape1:
+            shape1.Velocity -= (impulse * invMass1);
+            shape2.Velocity += (impulse * invMass2);
 
-            //calcualte rotation of shape2:
-            
+            Vector3 angularImpulseA = Vector3.Cross(relativePosition1, impulse);
+            Vector3 angularImpulseB = Vector3.Cross(relativePosition2, impulse);
 
+            shape1.RotationalVelocity -= Vector3.Transform(angularImpulseA, invInertia1);
+            shape2.RotationalVelocity += Vector3.Transform(angularImpulseB, invInertia2);
 
+            //// TODO friction (if time or need)
 
+            ResolvePosition(shape1, shape2, collisionResult.CollisionNormal, collisionResult.PenetrationDepth, invMass1, invMass2);
+        }
 
+        private static void ResolvePosition(RigidBody shape1, RigidBody shape2, Vector3 collisionNormal,
+                                   float penetrationDepth, float invMass1, float invMass2)
+        {
+            const float PenetrationAllowance = EPSILON * 100;
+            const float PenetrationCorrection = 1.0f;  // 0 to 1 (how much to fix)
+
+            // Only fix position if penetration is significant
+            if (penetrationDepth > PenetrationAllowance)
+            {
+                float correctionMagnitude = (penetrationDepth * PenetrationCorrection) / (invMass1 + invMass2);
+                Vector3 correction = correctionMagnitude * collisionNormal;
+
+                shape1.BoundingShape.Position += correction * invMass1;
+                shape2.BoundingShape.Position -= correction * invMass2;
+            }
         }
 
         private bool DetectCollision(Tuple<int, int> collision, out CollisionResult collisionResult)
@@ -179,175 +492,133 @@ namespace Physics550Engine_Raylib.Physics
             return true;
         }
 
-        private bool DetectOBBOBBCollision(OrientedBoundingBox box1, OrientedBoundingBox box2, out CollisionResult collisionResult)
+        private bool DetectOBBOBBCollision(OrientedBoundingBox box1, OrientedBoundingBox box2, out CollisionResult result)
         {
-            collisionResult = new CollisionResult
-            {
-                HasCollision = false,
-                PenetrationDepth = float.MaxValue
-            };
-
-            // Get box axes
+            result = new CollisionResult();
+            result.HasCollision = false;
+            result.PenetrationDepth = float.MaxValue;
+            int save_i = int.MaxValue;
             Vector3[] box1Axes = box1.GetAxes();
             Vector3[] box2Axes = box2.GetAxes();
 
-            Vector3 t = box2.Position - box1.Position;
+            Vector3 translation = box2.Position - box1.Position;
 
-            Vector3 tInA = new Vector3(
-                Vector3.Dot(t, box1Axes[0]),
-                Vector3.Dot(t, box1Axes[1]),
-                Vector3.Dot(t, box1Axes[2])
+            Vector3[] axes = new Vector3[15];
+
+            for (int i = 0; i < 3; i++)
+            {
+                axes[i] = box1Axes[i];
+                axes[i + 3] = box2Axes[i];
+            }
+
+            int index = 6;
+            for (int i = 0; i < 3; i++)
+            {
+                for (int j = 0; j < 3; j++)
+                {
+                    axes[index++] = Vector3.Cross(box1Axes[i], box2Axes[j]);
+                }
+            }
+
+            for (int i = 0; i < 15; i++)
+            {
+                if (Vector3.Dot(axes[i], axes[i]) < 1e-6f)
+                    continue;
+
+                // Normalize the axis, not sure we have done this up to this point ? check this
+                axes[i] = Vector3.Normalize(axes[i]);
+
+                ProjectOBB(box1, axes[i], out float box1Min, out float box1Max);
+                ProjectOBB(box2, axes[i], out float box2Min, out float box2Max);
+
+                if (box1Max < box2Min || box2Max < box1Min)
+                {
+                    return false;
+                }
+
+                float overlap = Math.Min(box1Max, box2Max) - Math.Max(box1Min, box2Min);
+
+                if (overlap < result.PenetrationDepth)
+                {
+                    result.PenetrationDepth = overlap;
+                    result.CollisionNormal = axes[i];
+                    save_i = i;
+
+                    if (Vector3.Dot(translation, result.CollisionNormal) < 0)
+                        result.CollisionNormal = -result.CollisionNormal;
+                }
+            }
+
+            // If we get here, no separating axis was found - boxes are colliding
+            result.HasCollision = true;
+
+            // Calculate contact point - this is a bit of a simplification that uses the better of the two colliding shapes.
+            if (save_i < 3) {
+                result.ContactPoint = GetSupportPoint(box2, result.CollisionNormal);
+            } else if (save_i < 6)
+            {
+                result.ContactPoint = GetSupportPoint(box1, result.CollisionNormal);
+            } else
+            {
+                result.ContactPoint = CalculateContactPoint(box1, box2, result.CollisionNormal, result.PenetrationDepth);
+            }
+
+            Raylib.DrawSphere(result.ContactPoint, .1f, Color.Blue);
+            return true;
+        }
+
+        private static void ProjectOBB(OrientedBoundingBox box, Vector3 axis, out float min, out float max)
+        {
+            float center = Vector3.Dot(box.Position, axis);
+
+            float radius = 0;
+            Vector3[] axes = box.GetAxes();
+
+            for (int i = 0; i < 3; i++)
+            {
+                radius += Math.Abs(Vector3.Dot(box.SideLengths[i] / 2 * axes[i], axis));
+            }
+
+            min = center - radius;
+            max = center + radius;
+        }
+
+        private static Vector3 CalculateContactPoint(OrientedBoundingBox box1, OrientedBoundingBox box2, Vector3 normal, float penetration)
+        {
+            Vector3 supportPoint1 = GetSupportPoint(box1, -normal);
+            Vector3 supportPoint2 = GetSupportPoint(box2, normal);
+
+            Vector3 pointOnBox1 = supportPoint1 + normal * penetration * 0.5f;
+            Vector3 pointOnBox2 = supportPoint2 - normal * penetration * 0.5f;
+
+            return (pointOnBox1 + pointOnBox2) * 0.5f;
+        }
+
+        private static Vector3 GetSupportPoint(OrientedBoundingBox box, Vector3 direction)
+        {
+            Matrix4x4 invRotation = Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(box.Orientation));
+            Vector3 localDir = Vector3.Transform(direction, invRotation);
+
+            // have seen some error with quat conversion here
+            if (localDir.X < EPSILON) localDir.X = 0;
+            if (localDir.Y < EPSILON) localDir.Y = 0;
+            if (localDir.Z < EPSILON) localDir.Z = 0;
+
+            Vector3 localSupport = new Vector3(
+                Math.Sign(localDir.X) * box.SideLengths.X / 2,
+                Math.Sign(localDir.Y) * box.SideLengths.Y / 2,
+                Math.Sign(localDir.Z) * box.SideLengths.Z / 2
             );
 
-            float[,] r = new float[3, 3];
-            for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                {
-                    r[i, j] = Vector3.Dot(box1Axes[i], box2Axes[j]);
-                }
-            }
+            Matrix4x4 rotation = Matrix4x4.CreateFromQuaternion(box.Orientation);
+            Vector3 worldSupport = Vector3.Transform(localSupport, rotation);
 
-            float[,] absR = new float[3, 3];
-            for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                {
-                    absR[i, j] = Math.Abs(r[i, j]) + EPSILON;
-                }
-            }
+            // have seen some error with quat conversion here
+            if (worldSupport.X < EPSILON) localDir.X = 0;
+            if (worldSupport.Y < EPSILON) localDir.Y = 0;
+            if (worldSupport.Z < EPSILON) localDir.Z = 0;
 
-            Vector3 bestAxis = Vector3.Zero;
-            int bestCase = -1;
-
-            // Test axes of box1
-            for (int i = 0; i < 3; i++)
-            {
-                float ra = box1.SideLengths[i] / 2;
-                float rb = box2.SideLengths.X / 2 * absR[i, 0] + box2.SideLengths.Y / 2 * absR[i, 1] + box2.SideLengths.Z / 2 * absR[i, 2];
-                float t_i = Math.Abs(tInA[i]);
-
-                if (t_i > ra + rb)
-                    return false; // No collision
-
-                float overlap = ra + rb - t_i;
-                if (overlap < collisionResult.PenetrationDepth)
-                {
-                    collisionResult.PenetrationDepth = overlap;
-                    bestAxis = box1Axes[i] * Math.Sign(tInA[i]);
-                    bestCase = i;
-                }
-            }
-
-            // Test axes of box2
-            for (int i = 0; i < 3; i++)
-            {
-                float ra = box1.SideLengths.X / 2 * absR[0, i] + box1.SideLengths.Y / 2 * absR[1, i] + box1.SideLengths.Z / 2 * absR[2, i];
-                float rb = box2.SideLengths[i] / 2;
-
-                float t_b = Vector3.Dot(t, box2Axes[i]);
-                float t_i = Math.Abs(t_b);
-
-                if (t_i > ra + rb)
-                    return false; // No collision
-
-                float overlap = ra + rb - t_i;
-                if (overlap < collisionResult.PenetrationDepth)
-                {
-                    collisionResult.PenetrationDepth = overlap;
-                    bestAxis = box2Axes[i] * Math.Sign(t_b);
-                    bestCase = i + 3;
-                }
-            }
-
-            // Test 9 cross product axes
-            for (int i = 0; i < 3; i++)
-            {
-                for (int j = 0; j < 3; j++)
-                {
-                    if (Math.Abs(absR[i, j]) > (1 - EPSILON)) continue;
-
-                    Vector3 axis = Vector3.Cross(box1Axes[i], box2Axes[j]);
-                    axis = Vector3.Normalize(axis);
-                    // Project both boxes onto the axis
-                    float ra = 0;
-                    float rb = 0;
-
-                    for (int k = 0; k < 3; k++)
-                    {
-                        ra += box1.SideLengths[k] / 2 * Math.Abs(Vector3.Dot(box1Axes[k], axis));
-                        rb += box2.SideLengths[k] / 2 * Math.Abs(Vector3.Dot(box2Axes[k], axis));
-                    }
-
-                    float t_i = Math.Abs(Vector3.Dot(t, axis));
-
-                    if (t_i > ra + rb)
-                        return false; // No collision
-
-                    float overlap = ra + rb - t_i;
-                    if (overlap < collisionResult.PenetrationDepth)
-                    {
-                        collisionResult.PenetrationDepth = overlap;
-                        bestAxis = axis * Math.Sign(Vector3.Dot(t, axis));
-                        bestCase = i + j + 6;
-                    }
-                }
-            }
-
-            // We have a collision, compute contact point
-            collisionResult.HasCollision = true;
-            collisionResult.CollisionNormal = bestAxis;
-
-            Vector3 pointOnA, pointOnB;
-
-            if (bestCase < 3) 
-            {
-                pointOnA = box1.Position + bestAxis * -box1.SideLengths[bestCase] / 2;
-
-                pointOnB = box2.Position;
-                for (int i = 0; i < 3; i++)
-                {
-                    pointOnB += box2Axes[i] * box2.SideLengths[i] / 2 * (Vector3.Dot(bestAxis, box2Axes[i]) < 0 ? -1 : 1);
-                }
-            }
-            else if (bestCase < 6) 
-            {
-                int faceIdx = bestCase - 3;
-                pointOnB = box2.Position + bestAxis * box2.SideLengths[faceIdx] / 2;
-
-                pointOnA = box1.Position;
-                for (int i = 0; i < 3; i++)
-                {
-                    pointOnA += box1Axes[i] * box2.SideLengths[i] / 2* (Vector3.Dot(bestAxis, box1Axes[i]) > 0 ? -1 : 1);
-                }
-            }
-            else // Edge-edge collision
-            {
-
-                Vector3[] verticesA = box1.GetVertices();
-                Vector3[] verticesB = box2.GetVertices();
-
-                float minDistance = float.MaxValue;
-                pointOnA = Vector3.Zero;
-                pointOnB = Vector3.Zero;
-
-                for (int i = 0; i < 8; i++)
-                {
-                    for (int j = 0; j < 8; j++)
-                    {
-                        float distance = Vector3.Distance(verticesA[i], verticesB[j]);
-                        if (distance < minDistance)
-                        {
-                            minDistance = distance;
-                            pointOnA = verticesA[i];
-                            pointOnB = verticesB[j];
-                        }
-                    }
-                }
-            }
-
-            collisionResult.ContactPoint = (pointOnA + pointOnB) * 0.5f;
-            return true;
+            return box.Position + worldSupport;
         }
     }
 }

@@ -6,46 +6,53 @@ namespace Physics550Engine_Raylib.Physics
 {
     public class RigidBody : INode
     {
+        float GRAV_CONST = -9.8f;
         public bool IsDebugDrawn { get; set; }
         public Vector3 Position { get; private set; }
-        public event EventHandler<PositionUpdateEventArgs>? PositionUpdateEvent;
-        public Vector3 Velocity { get; private set; }
-        public Vector3 Acceleration { get; private set; }
-        public Quaternion RotationalVelocity { get; private set; }
-        public Quaternion RotationalAcceleration { get; private set; }
+        public Vector3 Velocity { get; set; }
+        public bool IsGravitational { get ; set; }
+        public bool CollideAll { get; set; }
+        public Vector3 RotationalVelocity { get; set; }
         public IBoundingShape BoundingShape { get; set; }
         public float Mass { get; set; }
-        public RigidBody(IBoundingShape boudingShape, Vector3 initial_velocity, Vector3 initial_acceleration, Vector3 initial_position, float mass)
+        public Matrix4x4 InertiaTensor { get; set; }
+        public float Restitution = 1.0f;
+        private int ColliderId;
+
+
+        public RigidBody(IBoundingShape boudingShape, Vector3 initial_velocity, Vector3 initial_position, float mass, Matrix4x4 inertiaTensor)
         {
             BoundingShape = boudingShape;
             Velocity = initial_velocity;
-            Acceleration = initial_acceleration;
             Mass = mass;
-            SetPosition(initial_position);
-            Collider.Instance.AddRigidBody(this);
-        }
-        public void SetPosition(Vector3 new_position)
-        {
-            PositionUpdateEventArgs args = new()
-            {
-                _new_position = new_position,
-            };
-            BoundingShape.Position = new_position;
-            this.Position = new_position;
+            Position = initial_position;
+            BoundingShape.Position = initial_position;
+            ColliderId = Collider.Instance.AddRigidBody(this);
+            InertiaTensor = inertiaTensor;
         }
 
-        public void OnStep(object? _, EventArgs __)
+        public Matrix4x4 GetWorldInverseInertiaTensor()
         {
-            Step();
+            Matrix4x4 rotMatrix = Matrix4x4.CreateFromQuaternion(BoundingShape.Orientation);
+            if ( Matrix4x4.Invert(InertiaTensor, out Matrix4x4 InverseInertiaTensor))
+                    return Matrix4x4.Transpose(rotMatrix) * InverseInertiaTensor * rotMatrix;
+            throw new Exception();
+        }
+        // Get the velocity at a specific point on the rigid body
+        public Vector3 GetVelocityAtPoint(Vector3 point)
+        {
+            Vector3 relativePoint = point - Position;
+            return Velocity + Vector3.Cross(RotationalVelocity, relativePoint);
         }
 
         private static Vector3 NewtonsMethod(Vector3 x_0, Vector3 x_delta, float timechange)
         {
             return x_0 + x_delta * timechange;
         }
-        void INode.OnDraw(object? _, EventArgs __)
+
+        public void Clear()
         {
-            Draw();
+            Collider.Instance.RemoveRigidBody(ColliderId);
         }
 
         public void Draw()
@@ -53,18 +60,29 @@ namespace Physics550Engine_Raylib.Physics
             if (IsDebugDrawn)
             {
                 Raylib.DrawCylinderEx(Position, Position + Velocity, .05f, .03f, 16, Color.Green);
-                Raylib.DrawCylinderEx(Position, Position + Acceleration, .05f, .03f, 16, Color.Blue);
-                BoundingShape.Draw();
             }
-            EventArgs args = new(); //come back to
+                BoundingShape.Draw(IsDebugDrawn);
         }
 
         public void Step()
         {
             var timechange = Raylib.GetFrameTime();
-            Velocity = NewtonsMethod(Velocity, Acceleration, timechange);
-            SetPosition(NewtonsMethod(Position, Velocity, timechange));
-        }
+            if ( IsGravitational )
+                    Velocity = NewtonsMethod(Velocity, new Vector3(0, GRAV_CONST, 0), timechange);
+            Vector3 new_position = NewtonsMethod(Position, Velocity, timechange);
 
+            BoundingShape.Position = new_position;
+            Position = new_position;
+
+            float angSpeed = RotationalVelocity.Length();
+
+            if (angSpeed < 0.00001f) return;
+
+            Vector3 axis = Vector3.Normalize(RotationalVelocity);
+            float angle = angSpeed * timechange;
+
+            Quaternion rotationThisStep = Quaternion.CreateFromAxisAngle(axis, angle);
+            BoundingShape.Orientation = Quaternion.Normalize(rotationThisStep * BoundingShape.Orientation);
+        }
     }
 }

@@ -12,6 +12,7 @@ namespace Physics550Engine_Raylib.Physics.Interfaces
         public bool IsColliding { get; set; }
         public Vector3 Offset { get; set; }
         public Vector3 Position { get; set; }
-        public void Draw();
+        public Quaternion Orientation { get; set; }
+        public void Draw(bool isDebugDrawn);
     }
 }

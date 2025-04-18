@@ -10,7 +10,7 @@
 
   <ItemGroup>
     <Compile Remove="Main.cs" />
-    <Compile Remove="scratch.cs" />
+    <Compile Remove="SCRATCH.cs" />
   </ItemGroup>
 
   <ItemGroup>

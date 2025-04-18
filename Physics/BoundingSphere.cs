@@ -16,15 +16,21 @@ namespace Physics550Engine_Raylib.Physics
         public Vector3 Offset { get; set; }
         public Vector3 Position { get; set; }
         public float Radius { get; set; }
+        public Quaternion Orientation { get; set; }
+
         public BoundingSphere(Vector3 offset, float radius)
         {
             Offset = offset;
             Radius = radius;
+            Orientation = Quaternion.Identity;
         }
 
-        public void Draw()
+        public void Draw(bool isDebugDrawn )
         {
-            Raylib.DrawSphereWires(Position, Radius, 16, 16, IsColliding ? Color.Red : Color.Blue);
+            if (isDebugDrawn)
+            {
+                Raylib.DrawSphereWires(Position, Radius, 16, 16, IsColliding ? Color.Red : Color.Blue);
+            }
         }
     }
 }
