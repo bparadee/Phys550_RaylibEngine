@@ -62,7 +62,7 @@ public class BoxCollisions
 
         var shapeBig = new OrientedBoundingBox(curr_offset1, side_lengths_big, not_rotated);
         var bodyBig = new Box(shapeBig, velocity_00, curr_position_big, 1000000);
-        bodyBig.IsDebugDrawn = true;
+        //bodyBig.IsDebugDrawn = true;
         bodyBig.CollideAll = true;
         stepper1.AddNode(bodyBig);
 

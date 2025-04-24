@@ -247,16 +247,15 @@ namespace Physics550Engine_Raylib.Physics
                     }
                     else
                     {
-                        float newBoundary = Boundary / 2;
                         float newCenter = Boundary / 4;
-                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, newCenter, newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, newCenter, -newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, -newCenter, -newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, newCenter, newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, -newCenter, newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, -newCenter, -newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, newCenter, -newCenter), newBoundary));
-                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, -newCenter, newCenter), newBoundary));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, newCenter, newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, newCenter, -newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, -newCenter, -newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, newCenter, newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, -newCenter, newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, -newCenter, -newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(-newCenter, newCenter, -newCenter), newCenter));
+                        Children.Add(new OctTreeNode(Center + new Vector3(newCenter, -newCenter, newCenter), newCenter));
 
                         foreach (var bodyPair in Bodies)
                         {
