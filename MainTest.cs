@@ -61,7 +61,7 @@ public class BoxCollisions
 
 
         var shapeBig = new OrientedBoundingBox(curr_offset1, side_lengths_big, not_rotated);
-        var bodyBig = new Box(shapeBig, velocity_00, curr_position_big, 1000000);
+        var bodyBig = new Box(shapeBig, velocity_00, curr_position_big, 10000000);
         //bodyBig.IsDebugDrawn = true;
         bodyBig.CollideAll = true;
         stepper1.AddNode(bodyBig);
@@ -103,11 +103,12 @@ public class BoxCollisions
 
         // Main game loop
         Random rand = new Random();
-        Collider.Instance.BCDType = 1;
+        Collider.Instance.BCDType = 0;
         Stopwatch stopwatch = new Stopwatch();
         stopwatch.Start();
 
         int clearCounter = 0; 
+        int stopCounter = 0; 
         while (!WindowShouldClose())
         {
             // Draw
@@ -116,13 +117,19 @@ public class BoxCollisions
             ClearBackground(Color.RayWhite);
 
             BeginMode3D(camera);
-            if (clearCounter > 500)
+            if (clearCounter > 2000)
             {
                 stepper.Clear();
+
                 clearCounter = 0;
+                stopCounter++;
+                if (stopCounter >= 3)
+                {
+                    CloseWindow();
+                }
             }
 
-            if (stopwatch.ElapsedMilliseconds > 100)
+            if (stopwatch.ElapsedMilliseconds > 10)
             {
                 var shape = new OrientedBoundingBox(curr_offset1, side_lengths, rotated);
                 shape.MeshColor = Color.Magenta;

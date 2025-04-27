@@ -1,12 +1,6 @@
 ﻿using Physics550Engine_Raylib.Physics.Interfaces;
-using Raylib_cs;
-using System;
-using System.Collections.Generic;
-using System.IO.Pipes;
-using System.Linq;
+using System.Diagnostics;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Physics550Engine_Raylib.Physics
 {
@@ -17,14 +11,14 @@ namespace Physics550Engine_Raylib.Physics
         public float PenetrationDepth { get; set; }
         public Vector3 CollisionNormal { get; set; }
     }
-    public class Collider
+    public class Collider : IDisposable
     {
         //only want one collider instance we already only have one PhysicsEgnine, so this might not be necessary
         private static readonly Lazy<Collider> instance = new Lazy<Collider>(() => new Collider());
         public static Collider Instance { get { return instance.Value; } }
         private int UniqueId = 0;
         //map of index to shape, index will be a unique identifier to that shape to be used with the broadphase collision detection.
-        public Dictionary<int, RigidBody> ShapeMap { get; private set; }
+        public Dictionary<int, RigidBody> ShapeMap = [];
         public HashSet<Tuple<int, int>> PotentialCollisions = [];
 
         public int BCDType = 0;
@@ -32,9 +26,23 @@ namespace Physics550Engine_Raylib.Physics
         private static int MAX_DEPTH = 8;
         private static int MAX_OBJ = 8;
 
+        private StreamWriter bpcd_times_file;
+        private StreamWriter npcd_times_file;
+        //private Stopwatch stopwatch;
+        //private bool step_measured;// = false;
+
         public Collider()
         {
-            ShapeMap = new Dictionary<int, RigidBody>();
+            string docPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            bpcd_times_file = new StreamWriter(Path.Combine(docPath, "bpcd_file.txt"), true);
+            npcd_times_file = new StreamWriter(Path.Combine(docPath, "npcd_file.txt"), true);
+            //stopwatch = new Stopwatch();
+        }
+
+        public void Dispose()
+        {
+            //if (bpcd_times_file != null) { bpcd_times_file.Close(); }
+            //if (npcd_times_file != null) { npcd_times_file.Close(); }
         }
         public int AddRigidBody(RigidBody rigidBody)
         {
@@ -58,6 +66,7 @@ namespace Physics550Engine_Raylib.Physics
 
         public void Step()
         {
+            //stopwatch.Restart();
             switch(BCDType)
             {
                 case 1:
@@ -86,7 +95,12 @@ namespace Physics550Engine_Raylib.Physics
                     }
                 break;
             }
-
+            //if (ShapeMap.Count % 10 == 0 && !step_measured)
+            //{
+            //        bpcd_times_file.WriteLine(ShapeMap.Count + ",  " + stopwatch.ElapsedMilliseconds);
+            //        bpcd_times_file.Flush();
+            //}
+            //stopwatch.Restart();
             foreach (var pair in PotentialCollisions)
             {
                 CollisionResult collisionResult;
@@ -96,10 +110,21 @@ namespace Physics550Engine_Raylib.Physics
 
                 if (DetectCollision(pair, out collisionResult))
                 {
-                    //Raylib.DrawSphere(collisionResult.ContactPoint, 0.5f, Color.Black);
                     ResolveCollision(pair, collisionResult);
                 }
             }
+
+            //if (ShapeMap.Count % 10 == 0 && !step_measured)
+            //{
+            //    npcd_times_file.WriteLine(stopwatch.ElapsedMilliseconds);
+            //    npcd_times_file.Flush();
+            //    step_measured = true;
+            //}
+            //if (ShapeMap.Count % 10 == 1)
+            //{
+            //    step_measured = false;
+            //}
+            //stopwatch.Stop();
         }
 
         private HashSet<Tuple<int, int>> SortAndSweep()
@@ -163,7 +188,7 @@ namespace Physics550Engine_Raylib.Physics
                 else
                 {
                     var grid_spot = Tuple.Create((int)Math.Floor(body.BoundingShape.Position.X),
-                                                 (int)Math.Floor(body.BoundingShape.Position.Y));
+                                                 (int)Math.Floor(body.BoundingShape.Position.Z));
                     grid_spots.Add(pair.Key, grid_spot);
                 }
             }
@@ -346,8 +371,8 @@ namespace Physics550Engine_Raylib.Physics
             RigidBody shape1 = ShapeMap[pair.Item1];
             RigidBody shape2 = ShapeMap[pair.Item2];
 
-            shape1.BoundingShape.IsColliding = true;
-            shape2.BoundingShape.IsColliding = true;
+            //shape1.BoundingShape.IsColliding = true;
+            //shape2.BoundingShape.IsColliding = true;
 
             Vector3 relativePosition1 = collisionResult.ContactPoint - shape1.Position;
             Vector3 relativePosition2 = collisionResult.ContactPoint - shape2.Position;
@@ -562,7 +587,7 @@ namespace Physics550Engine_Raylib.Physics
                 result.ContactPoint = CalculateContactPoint(box1, box2, result.CollisionNormal, result.PenetrationDepth);
             }
 
-            Raylib.DrawSphere(result.ContactPoint, .1f, Color.Blue);
+            //Raylib.DrawSphere(result.ContactPoint, .1f, Color.Blue);
             return true;
         }
 
